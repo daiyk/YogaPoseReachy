@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reachy · Pose Coach</title><link rel="stylesheet" href="/static/style.css">
+</head>
+<body><main>
+<header><div><p class="eyebrow">REACHY MINI</p><h1>Pose Coach</h1><p>Make room. Find your pose. Practice at your own pace.</p></div><span id="connection" class="badge">Connecting…</span></header>
+<section class="practice" aria-label="Practice controls"><div><strong id="availability">Waiting for the coach</strong><p id="activity">Practice is stopped</p></div><div class="actions"><button id="start" disabled>Start practice</button><button id="end" class="secondary" disabled>End practice</button></div></section>
+<p class="small">Keep the selected parts and both hips visible, with your hips roughly facing Reachy’s camera. Match the reference’s body angle; your head can follow the pose.</p>
+<p id="notice" role="status" aria-live="polite"></p>
+<div class="grid">
+<section class="card"><div class="card-heading"><h2>Your reference</h2><span id="reference-status" class="small">Loading…</span></div><canvas id="reference-canvas" width="640" height="480" aria-label="Selected reference pose with detected skeleton"></canvas>
+<div class="fields"><label>Reference<select id="reference"><option value="builtin">Warrior II · built in</option><option value="uploaded" disabled>Your uploaded photo</option></select></label><label>Compare sides<select id="side"><option value="same">Same anatomical side</option><option value="opposite">Opposite anatomical side</option></select></label></div>
+<form id="body-parts"><fieldset><legend>Parts to compare</legend><p class="small">Left and right refer to the person in the reference photo. Opposite-side matching swaps them for live practice.</p><div id="scoring-parts" class="fields"></div></fieldset><fieldset><legend>Extra visibility and framing</legend><p class="small">These parts add no scores. Leave them off to ignore clipped or unstable extremities.</p><div id="visibility-parts" class="fields"></div></fieldset><p class="small">Both hips are always required. Selected arms still need wrists; selected legs still need ankles.</p><button id="apply-parts" type="submit">Apply body parts</button><span id="parts-saved" class="small" role="status"></span></form>
+<label class="upload">Choose a reference photo<input id="upload" type="file" accept="image/jpeg,image/png"></label><p class="small">JPEG or PNG, up to 5 MB. One person, with the head, selected parts and both hips visible. Saved locally on Reachy.</p>
+</section>
+<section class="card"><div class="card-heading"><h2>Live practice</h2><button id="preview" class="secondary compact">Open camera preview</button></div><div class="camera"><canvas id="live-canvas" width="640" height="480" aria-label="Live robot camera with pose skeleton"></canvas><p id="preview-placeholder">Camera preview is off</p></div><label class="check"><input id="mirror" type="checkbox" checked>Mirror the preview <span class="small">(display only)</span></label>
+<div class="scoreline"><div><strong id="score">—</strong><span class="small"> / 100</span></div><div><strong id="band">Pose unavailable</strong><p id="freshness" class="small">Waiting for a fresh observation</p></div></div><div id="meter" role="meter" aria-label="Pose similarity" aria-valuemin="0" aria-valuemax="100"><span></span></div><p id="score-scope" class="small"></p><p id="required-parts" class="small"></p><p id="correction">Start practice when you are ready.</p><p class="small">This score measures similarity to the reference. Stay within a comfortable range of motion.</p>
+</section>
+</div>
+<section class="card events"><h2>Recent observations</h2><ol id="events"><li>No observations yet</li></ol></section>
+<details class="card"><summary>Practice settings</summary><form id="settings">
+<fieldset><legend>Camera framing</legend><label class="check"><input id="framing-enabled" type="checkbox">Let Reachy gently keep me in view</label><p id="calibration" class="small"></p><p class="small">Framing pauses while you speak. Leave these fields empty to use the camera calibration.</p><div class="fields"><label>Measured horizontal field of view (°)<input id="horizontal-fov" type="number" min="20" max="160" step="0.1"></label><label>Measured vertical field of view (°)<input id="vertical-fov" type="number" min="15" max="130" step="0.1"></label></div></fieldset>
+<fieldset><legend>Score band boundaries</legend><div class="fields three"><label>Approaching<input id="band-0" type="number" min="5" max="95" required></label><label>Close<input id="band-1" type="number" min="5" max="95" required></label><label>Match<input id="band-2" type="number" min="5" max="95" required></label></div><p class="small">Keep at least six points between boundaries.</p></fieldset>
+<fieldset><legend>Observation rates</legend><p class="small">Lower rates leave more processing time for conversation. Actual speed depends on the robot.</p><div class="fields"><label>Idle (FPS)<input id="idle-fps" type="number" min="0.5" max="6" step="0.1" required></label><label>Listening (FPS)<input id="listening-fps" type="number" min="0.5" max="6" step="0.1" required></label><label>Thinking (FPS)<input id="thinking-fps" type="number" min="0.5" max="6" step="0.1" required></label><label>Searching (FPS)<input id="searching-fps" type="number" min="0.5" max="3" step="0.1" required></label></div></fieldset>
+<fieldset><legend>Coaching frequency</legend><label>Minimum gap between spoken tips (seconds)<input id="speech-gap" type="number" min="5" max="60" required></label><div id="cooldowns" class="fields"></div></fieldset><button type="submit" id="save">Save settings</button><span id="saved" class="small" role="status"></span>
+</form></details>
+<details class="card" id="backend-card"><summary>Speech server</summary><form id="backend">
+<fieldset><legend>Conversation backend</legend><div class="fields"><label>Server<select id="backend-mode"><option value="deployed">Hosted by Hugging Face</option><option value="local">Your own server</option></select></label><label id="backend-url-field" style="grid-column:1/-1">Server URL<input id="backend-url" type="url" placeholder="ws://192.168.1.20:8765/v1/realtime" autocomplete="off" spellcheck="false"></label></div>
+<p class="small">Saved on Reachy and remembered across restarts. Saving reconnects the conversation.</p><p id="backend-error" class="small"></p></fieldset>
+<button type="submit" id="backend-save">Save and reconnect</button><span id="backend-saved" class="small" role="status"></span>
+</form></details>
+<footer><span>Speak naturally to Reachy, or use the controls above.</span><button id="mic" class="secondary">Mute microphone</button></footer>
+</main><script type="module" src="/static/main.js"></script></body></html>
+
