@@ -19,12 +19,19 @@ from reachy_mini_pose_coach.coach.routes import register_coach_routes
 from reachy_mini_pose_coach.coach.settings import CoachSettings, load_coach_settings, save_coach_settings
 
 
+def test_settings_accept_up_to_30_fps():
+    """Every observation rate can be raised to the Lite camera's 30 FPS."""
+    settings = CoachSettings(idle_fps=30, listening_fps=30, thinking_fps=30, searching_fps=30)
+    assert (settings.idle_fps, settings.searching_fps) == (30, 30)
+
+
 @pytest.mark.parametrize(
     "fields",
     [
         {"band_edges": [70, 50, 85]},
         {"band_edges": [50, 52, 85]},
-        {"idle_fps": 7},
+        {"idle_fps": 31},
+        {"searching_fps": 30.5},
         {"speech_gap_s": 1},
         {"cooldowns": {}},
         {"horizontal_fov_deg": 80},

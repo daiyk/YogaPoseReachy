@@ -307,7 +307,7 @@ async function previewLoop() {
       }
     } catch (error) { $('preview-placeholder').textContent = error.message; $('preview-placeholder').hidden = false; }
   }
-  setTimeout(previewLoop,205);
+  setTimeout(previewLoop,33);
 }
 poll(); previewLoop();
 

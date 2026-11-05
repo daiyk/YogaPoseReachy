@@ -408,7 +408,7 @@ is attached to each audio turn; no camera image or landmarks are sent to the spe
 
 The panel shows the current score, one anatomical mismatch, tracking availability, recent observations and
 
-conversation connection. Preview starts off; opening it enables one latest JPEG at no more than 5 FPS,
+conversation connection. Preview starts off; opening it enables one latest JPEG at no more than 30 FPS,
 
 with the skeleton drawn on its matching image. Closing/hiding the page stops its preview lease within one
 
@@ -424,7 +424,7 @@ boundaries, event cooldowns, speech gap and observation rates apply to the live 
 
 Default idle/listening/thinking rates are 3 FPS, searching 1 FPS, using the existing Full model with one
 
-inference thread. Actual throughput can be lower. Inference pauses during playback, motion and the
+inference thread. Every rate can be raised to 30 FPS (the Lite camera rate); actual throughput can be lower. Inference pauses during playback, motion and the
 
 following half-second settling interval. A stopped coordinator's inference lease expires after one second.
 

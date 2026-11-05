@@ -46,6 +46,7 @@ from reachy_mini_pose_coach.prompts import (
 )
 from reachy_mini_pose_coach.streaming import AdditionalOutputs, audio_to_int16
 from reachy_mini_pose_coach.coach.bridge import COACH_TOOLS, CoachBridge, ResponseRequest, CoachProtocolError
+from reachy_mini_pose_coach.coach.settings import MAX_FPS
 from reachy_mini_pose_coach.audio.local_vad import SileroVAD
 from reachy_mini_pose_coach.tools.core_tools import (
     ToolSpec,
@@ -604,7 +605,8 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
                 tools_pending=bool(self._in_flight_tool_calls) or self._tool_batch_needs_response,
                 requests_pending=not self._pending_responses.empty(),
             )
-            await asyncio.sleep(0.05)
+            # Tick at the highest inference rate so no completed pose sample is skipped.
+            await asyncio.sleep(1 / MAX_FPS)
 
     async def _await_coach_session(self) -> None:
         """Keep generation disabled until the backend confirms manual-response settings."""

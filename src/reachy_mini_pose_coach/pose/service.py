@@ -16,10 +16,13 @@ from .engine import Frame, PoseEngine, cv2
 from ..coach.scope import PARTS, BodyScope
 from ..coach.motion import CameraAngles
 from ..coach.sample import Reason, Landmark, PoseSample
+from ..coach.settings import MAX_FPS
 
 
 logger = logging.getLogger(__name__)
 # A present person whose framing the coach should ask them to fix.
+# Preview follows the same 30 FPS ceiling as inference.
+PREVIEW_INTERVAL_S = 1 / MAX_FPS
 FRAMING_REASONS = frozenset((Reason.OUT_OF_FRAME, Reason.TOO_CLOSE, Reason.OCCLUDED, Reason.UNRELIABLE_TRACKING))
 
 
@@ -111,7 +114,7 @@ class PoseService:
 
     def set_rate(self, rate: float) -> None:
         """Lease the requested rate briefly; a stopped coordinator cannot leave inference running."""
-        if not 0 <= rate <= 6:
+        if not 0 <= rate <= MAX_FPS:
             raise ValueError("Invalid inference rate")
         with self._lock:
             self._rate = rate
@@ -211,7 +214,7 @@ class PoseService:
             }
 
     def preview(self) -> dict[str, object] | None:
-        """Encode at most five latest images per second, only while a visible panel requests them."""
+        """Encode at most MAX_FPS latest images per second, only while a visible panel requests them."""
         with self._lock:
             now = time.monotonic()
             self._preview_until = now + 1
@@ -220,7 +223,7 @@ class PoseService:
         try:
             with self._lock:
                 frame = self._frame
-                if frame is None or now - self._preview_at < 0.2 or frame[0] == self._preview_id:
+                if frame is None or now - self._preview_at < PREVIEW_INTERVAL_S or frame[0] == self._preview_id:
                     return None
                 self._preview_at, self._preview_id = now, frame[0]
             if cv2 is None:
@@ -289,13 +292,15 @@ class PoseService:
                     continue
                 infer = rate > 0 and now >= next_inference and self.status == "ready"
                 if not infer and not (preview and rate == 0 and now >= next_preview):
-                    self._stop.wait(0.03)
+                    # Sleep only until the next due frame so high rates are not quantised by the idle poll.
+                    due = [t for t, on in ((next_inference, rate > 0), (next_preview, preview and rate == 0)) if on]
+                    self._stop.wait(min([0.03, *(max(0.001, t - now) for t in due)]))
                     continue
                 frame = self._read_frame()
                 captured = time.monotonic()
                 observed = datetime.now(timezone.utc)
                 if frame is None:
-                    self._stop.wait(0.03)
+                    self._stop.wait(0.005)
                     continue
                 frame_id += 1
                 if frame.shape[1] > 640:
@@ -360,12 +365,15 @@ class PoseService:
                             self.missing_landmarks = missing
                             if sample.reason != Reason.WORKER_FAILURE:
                                 self.error = None
-                    next_inference = captured + 1 / rate
+                    # Fixed cadence: coarse OS wake-ups (~15 ms on Windows) must not accumulate into a lower rate.
+                    period = 1 / rate
+                    behind = captured - next_inference
+                    next_inference = next_inference + period if 0 <= behind < period else captured + period
                 with self._lock:
                     if self._revision == current_revision and preview:
                         points = tuple((p.x, p.y, p.presence >= 0.5 and p.visibility >= 0.5) for p in landmarks)
                         self._frame = (frame_id, captured, frame, points)
-                next_preview = captured + 0.2
+                next_preview = captured + PREVIEW_INTERVAL_S
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             logger.error("Pose service unavailable: %s", exc)
             with self._lock:

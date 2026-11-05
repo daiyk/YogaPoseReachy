@@ -95,6 +95,22 @@ def test_no_inference_without_lease_and_one_latest_sample(running):
     assert engine.calls == count and service.latest().sample_id >= sample.sample_id
 
 
+def test_rate_reaches_30_fps_and_rejects_more(running):
+    """A 30 FPS lease is honoured within OS timer jitter; higher requests are refused."""
+    service, engine = running
+    with pytest.raises(ValueError):
+        service.set_rate(30.5)
+    service.set_rate(30)
+    wait_for(lambda: engine.calls > 0)
+    start, deadline = engine.calls, time.monotonic() + 2
+    while time.monotonic() < deadline:
+        service.set_rate(30)
+        time.sleep(0.1)
+    rate = (engine.calls - start) / 2
+    service.set_rate(0)
+    assert 25 <= rate <= 31
+
+
 def test_reference_change_drops_inflight_old_result(running):
     """No old-reference score or skeleton is published after an upload."""
     service, engine = running

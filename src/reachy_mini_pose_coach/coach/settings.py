@@ -9,6 +9,8 @@ from pydantic import Field, BaseModel, ConfigDict, model_validator
 
 
 logger = logging.getLogger(__name__)
+# Highest requestable inference rate; the Lite camera delivers 30 FPS. Actual throughput can be lower.
+MAX_FPS = 30.0
 DEFAULT_COOLDOWNS = {
     "person_lost": 10.0,
     "framing_bad": 10.0,
@@ -28,10 +30,10 @@ class CoachSettings(BaseModel):
     band_edges: tuple[float, float, float] = (50.0, 70.0, 85.0)
     cooldowns: dict[str, float] = Field(default_factory=lambda: dict(DEFAULT_COOLDOWNS))
     speech_gap_s: float = Field(default=5.0, ge=5, le=60)
-    idle_fps: float = Field(default=3.0, ge=0.5, le=6)
-    listening_fps: float = Field(default=3.0, ge=0.5, le=6)
-    thinking_fps: float = Field(default=3.0, ge=0.5, le=6)
-    searching_fps: float = Field(default=1.0, ge=0.5, le=3)
+    idle_fps: float = Field(default=3.0, ge=0.5, le=MAX_FPS)
+    listening_fps: float = Field(default=3.0, ge=0.5, le=MAX_FPS)
+    thinking_fps: float = Field(default=3.0, ge=0.5, le=MAX_FPS)
+    searching_fps: float = Field(default=1.0, ge=0.5, le=MAX_FPS)
     framing_enabled: bool = False
     horizontal_fov_deg: float | None = Field(default=None, ge=20, le=160)
     vertical_fov_deg: float | None = Field(default=None, ge=15, le=130)
