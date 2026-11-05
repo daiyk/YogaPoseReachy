@@ -6,7 +6,6 @@ flip, which is a true mirror image of the pose. No camera, model or detector run
 
 import json
 import math
-import importlib
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -49,20 +48,10 @@ class Detector:
 
 @pytest.fixture
 def engine(monkeypatch):
-    """Build a PoseEngine on the shared production comparison module and the fixture landmarks."""
-    monkeypatch.syspath_prepend(str(Path(__file__).parents[3] / "reachy_mini_pose_compare"))
-    comparison = importlib.import_module("reachy_mini_pose_compare.comparison")
-    assets = Path(comparison.__file__).parent / "assets"
+    """Build a PoseEngine on the bundled production comparison module and the fixture landmarks."""
     scene = {"value": landmarks("reference")}
-    modules = {
-        "reachy_mini_pose_compare.detector": SimpleNamespace(
-            __file__=str(assets.parent / "detector.py"),
-            PoseDetector=lambda model, mode, options: Detector(mode, scene),
-        ),
-        "reachy_mini_pose_compare.comparison": comparison,
-        "reachy_mini_pose_compare.runner": SimpleNamespace(validate_reference=lambda image: image),
-    }
-    monkeypatch.setattr(engine_module.importlib, "import_module", modules.__getitem__)
+    monkeypatch.setattr(engine_module, "PoseDetector", lambda model, mode, options: Detector(mode, scene))
+    monkeypatch.setattr(engine_module, "validate_reference", lambda image: image)
     codec = SimpleNamespace(
         IMREAD_COLOR=1, COLOR_BGR2RGB=2, imdecode=lambda *_: FRAME, cvtColor=lambda frame, _: frame
     )

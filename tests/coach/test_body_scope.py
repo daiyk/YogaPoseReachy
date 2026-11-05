@@ -4,7 +4,6 @@ import copy
 import json
 import importlib
 from types import SimpleNamespace
-from pathlib import Path
 from dataclasses import replace
 
 import pytest
@@ -20,9 +19,8 @@ from reachy_mini_pose_coach.coach.controller import Coach
 
 @pytest.fixture
 def comparison(monkeypatch):
-    """Use the shared production geometry without loading a detector or model."""
-    monkeypatch.syspath_prepend(str(Path(__file__).parents[3] / "reachy_mini_pose_compare"))
-    return importlib.import_module("reachy_mini_pose_compare.comparison")
+    """Use the bundled production geometry without loading a detector or model."""
+    return importlib.import_module("reachy_mini_pose_coach.pose.runtime.comparison")
 
 
 def pose():

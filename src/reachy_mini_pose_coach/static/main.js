@@ -136,7 +136,7 @@ function show(next) {
     (next.pose.status === 'invalid_reference' ? 'Check the photo or selected body parts' : 'Pose tracking is unavailable; conversation can continue') :
     next.status === 'valid' ? 'Pose in view' : reasons[next.reason] || 'Waiting for a fresh pose';
   $('activity').textContent = next.practice_active ? `Practice active · ${next.activity}` : 'Practice is stopped';
-  $('reference-status').textContent = ({ready:'Ready',loading:'Checking pose…',starting:'Starting tracker…',invalid_reference:'Photo needs attention'})[next.pose.status] || 'Tracking unavailable';
+  $('reference-status').textContent = ({ready:'Ready',loading:'Checking pose…',starting:'Starting tracker…',installing:'Installing pose tracker (first start, a few minutes)…',invalid_reference:'Photo needs attention'})[next.pose.status] || 'Tracking unavailable';
   if (!busy) {
     $('reference').value = next.pose.reference || 'builtin';
     $('side').value = next.pose.side || 'same';

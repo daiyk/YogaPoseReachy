@@ -32,16 +32,14 @@ def test_adapter_timing_and_reason_projection(tmp_path, monkeypatch):
         "smoothing_seconds": 0.5,
         "live_frontal_limit_deg": 30.0,
     }
-    modules = {
-        "reachy_mini_pose_compare.detector": SimpleNamespace(
-            __file__=str(tmp_path / "detector.py"), PoseDetector=MagicMock(return_value=detector)
-        ),
-        "reachy_mini_pose_compare.comparison": SimpleNamespace(
-            SETTINGS=gates, prepare_reference=prepare, ComparisonEngine=lambda ref: comparison
-        ),
-        "reachy_mini_pose_compare.runner": SimpleNamespace(validate_reference=lambda image: image),
-    }
-    monkeypatch.setattr(engine_module.importlib, "import_module", modules.__getitem__)
+    factory = MagicMock(return_value=detector)
+    monkeypatch.setattr(engine_module, "PoseDetector", factory)
+    monkeypatch.setattr(
+        engine_module,
+        "comparison",
+        SimpleNamespace(SETTINGS=gates, prepare_reference=prepare, ComparisonEngine=lambda ref: comparison),
+    )
+    monkeypatch.setattr(engine_module, "validate_reference", lambda image: image)
     codec = SimpleNamespace(
         IMREAD_COLOR=1,
         COLOR_BGR2RGB=2,
@@ -49,7 +47,7 @@ def test_adapter_timing_and_reason_projection(tmp_path, monkeypatch):
         cvtColor=lambda frame, _: frame,
     )
     monkeypatch.setattr(engine_module, "cv2", codec)
-    engine = engine_module.PoseEngine()
+    engine = engine_module.PoseEngine(assets)
     engine.prepare(b"jpeg", "same")
     settings = prepare.call_args.kwargs["settings"]
     assert settings["minimum_frames"] == 1 and settings["minimum_span_seconds"] == 0
@@ -85,7 +83,7 @@ def test_adapter_timing_and_reason_projection(tmp_path, monkeypatch):
     points[31].visibility = 1
     assert engine.detect(frame, 14).score == 80
     engine.stopping.set()
-    previous = modules["reachy_mini_pose_compare.detector"].PoseDetector.call_count
+    previous = factory.call_count
     engine.prepare(b"jpeg", "same")
-    assert modules["reachy_mini_pose_compare.detector"].PoseDetector.call_count == previous
+    assert factory.call_count == previous
     engine.close()

@@ -26,6 +26,7 @@ from reachy_mini_pose_coach.coach.motion import CameraAngles
 from reachy_mini_pose_coach.pose.service import PoseService
 from reachy_mini_pose_coach.coach.settings import load_coach_settings
 from reachy_mini_pose_coach.tools.core_tools import lock_tools
+from reachy_mini_pose_coach.pose.runtime.environment import ensure_runtime
 
 
 if TYPE_CHECKING:
@@ -210,9 +211,9 @@ def run(
                 angles = CameraAngles.from_intrinsics(camera.K, *camera.resolution)
         except (ValueError, RuntimeError) as exc:
             logger.warning("Camera framing needs measured field-of-view settings: %s", exc)
-        pose_service = PoseService(robot.media.get_frame, coach_directory, angles)
+        pose_service = PoseService(robot.media.get_frame, coach_directory, angles, runtime=ensure_runtime)
     else:
-        logger.info("Live pose service requires the onboard GStreamer camera")
+        logger.info("Live pose service requires the robot's local GStreamer camera")
 
     deps = ToolDependencies(
         reachy_mini=robot,

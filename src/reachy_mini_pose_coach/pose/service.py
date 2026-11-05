@@ -10,6 +10,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from collections.abc import Callable
 
+import numpy as np
+
 from .engine import Frame, PoseEngine, cv2
 from ..coach.scope import PARTS, BodyScope
 from ..coach.motion import CameraAngles
@@ -30,9 +32,14 @@ class PoseService:
         directory: Path | None,
         angles: CameraAngles | None = None,
         engine_factory: Callable[[], PoseEngine] = PoseEngine,
+        runtime: Callable[[Callable[[], None]], object] | None = None,
     ) -> None:
-        """Start without inference or preview until the worker thread is launched."""
+        """Start without inference or preview until the worker thread is launched.
+
+        `runtime` prepares the worker's Python before the engine starts (the app passes `ensure_runtime`).
+        """
         self._read_frame = read_frame
+        self._runtime = runtime
         self.directory = directory
         self.angles = angles
         self._engine_factory = engine_factory
@@ -217,7 +224,7 @@ class PoseService:
                     return None
                 self._preview_at, self._preview_id = now, frame[0]
             if cv2 is None:
-                raise RuntimeError("Camera preview requires the existing OpenCV runtime")
+                raise RuntimeError("Camera preview requires OpenCV")
             ok, jpeg = cv2.imencode(".jpg", frame[2], [cv2.IMWRITE_JPEG_QUALITY, 75])
             if not ok:
                 raise RuntimeError("Cannot encode camera preview")
@@ -229,9 +236,15 @@ class PoseService:
         finally:
             self._preview_lock.release()
 
+    def _installing(self) -> None:
+        with self._lock:
+            self.status, self.error = "installing", None
+
     def _run(self) -> None:
         engine = None
         try:
+            if self._runtime is not None:
+                self._runtime(self._installing)
             engine = self._engine_factory()
             with self._lock:
                 self._engine = engine
@@ -287,11 +300,14 @@ class PoseService:
                 frame_id += 1
                 if frame.shape[1] > 640:
                     if cv2 is None:
-                        raise RuntimeError("Camera processing requires the existing OpenCV runtime")
-                    frame = cv2.resize(
-                        frame,
-                        (640, max(1, round(frame.shape[0] * 640 / frame.shape[1]))),
-                        interpolation=cv2.INTER_AREA,
+                        raise RuntimeError("Camera processing requires OpenCV")
+                    frame = np.asarray(
+                        cv2.resize(
+                            frame,
+                            (640, max(1, round(frame.shape[0] * 640 / frame.shape[1]))),
+                            interpolation=cv2.INTER_AREA,
+                        ),
+                        dtype=np.uint8,
                     )
                 landmarks: tuple[Landmark, ...] = ()
                 missing: tuple[str, ...] = ()

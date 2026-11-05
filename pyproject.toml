@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reachy_mini_pose_coach"
-version = "1.1.1"
+version = "1.2.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [ "certifi>=2026.10.19", "pip>=26.2.2", "huggingface-hub>=1.17.0", "httpx>=0.28.1", "python-dotenv", "platformdirs", "openai==2.28.0", "reachy_mini_dances_library", "reachy-mini>=1.11.0", "mcp>=2.0,<3", "mcp-types>=2.0,<3", "httpx2>=2.5.0",]
+dependencies = [ "certifi>=2026.10.19", "pip>=26.2.2", "huggingface-hub>=1.17.0", "httpx>=0.28.1", "python-dotenv", "platformdirs", "openai==2.28.0", "reachy_mini_dances_library", "reachy-mini>=1.11.0", "mcp>=2.0,<3", "mcp-types>=2.0,<3", "httpx2>=2.5.0", "numpy>=2.2.5", "opencv-contrib-python==5.0.0.93", "pillow>=10", "mediapipe==1.1.1; sys_platform != 'linux' or (platform_machine != 'aarch64' and platform_machine != 'arm64')",]
 [[project.authors]]
 name = "Pollen Robotics"
 email = "contact@pollen-robotics.com"
@@ -52,7 +52,7 @@ reachy-mini-dances-library = false
 
 [tool.setuptools.package-data]
 reachy_talk_data = [ "profiles/**/*.md",]
-reachy_mini_pose_coach = [ "static/**/*", ".env.example",]
+reachy_mini_pose_coach = [ "static/**/*", ".env.example", "pose/assets/*", "pose/runtime/*.txt",]
 
 [tool.ruff.lint]
 select = [ "E", "F", "W", "I", "C4", "D",]

@@ -44,13 +44,30 @@ Saying “exit the app” invokes `go_to_sleep`, sleeps the robot, and stops the
 
 
 
+## Pose runtime (bundled)
+
+The coach needs no other Reachy app. Since 1.2.0 it ships its own MediaPipe worker, comparison geometry,
+Full pose model and built-in reference photo (`src/reachy_mini_pose_coach/pose/runtime/` and `pose/assets/`).
+`reachy_mini_pose_compare` is no longer imported.
+
+| Robot | Where MediaPipe runs | Setup |
+|---|---|---|
+| Lite / desktop (Windows, macOS, x86-64 Linux) | MediaPipe 1.1.1 in the app's own environment | Installed with the app's dependencies |
+| Wireless (ARM64 Linux, CM4) | MediaPipe 0.10.18 in `~/reachy-pose-runtime` (1.x crashes on the CM4) | Created automatically on first start from `pose/runtime/requirements-arm64.lock.txt`; the panel shows *Installing pose tracker*. An existing compatible runtime is adopted, not reinstalled. Log: `~/reachy-pose-runtime/install.log`. |
+
+`REACHY_POSE_PYTHON` points the worker at another interpreter (never installed into); `REACHY_POSE_RUNTIME`
+moves the Wireless runtime directory. The comparison code is a typed copy of the compare app's; the
+repository-level `checks/comparison_drift.py` (not part of this app) reports if the two copies diverge.
+
+
 ## Phase 0 diagnostics
 
 
 
 Run these from `/home/pollen/reachy_mini_pose_coach` on the robot, using the existing shared app environment.
 
-Measurements require the coach app to be running, the installed `reachy_mini_pose_compare` package, and the
+Measurements require the coach app to be running and, for `--pose` (which measures the compare app's own
+Runner), the installed `reachy_mini_pose_compare` package and the
 
 existing isolated pose runtime. They are on-robot Linux diagnostics, not Windows camera tools. Run CPU
 
@@ -439,13 +456,9 @@ sleep/stop lifecycle. Wobble, face tracking and idle breathing remain disabled.
 
 
 
-Runtime prerequisite: the already-installed `reachy_mini_pose_compare` package with its Full model and
-
-reference assets, OpenCV, and the existing isolated compatible MediaPipe runtime. This change installs
-
-no dependencies and does not alter the SDK's NumPy environment. Only onboard GStreamer camera access
-
-is enabled in this implementation; a missing runtime/camera leaves conversation available. The SDK exposes
+Runtime: the bundled pose runtime (see *Pose runtime (bundled)*); this phase originally used the
+compare app's package, which 1.2.0 replaced. The SDK's NumPy environment is not altered. Only the robot's local
+GStreamer camera is used; a missing runtime/camera leaves conversation available. The SDK exposes
 
 no sensor exposure timestamp: sample age starts when the latest frame is received from camera IPC,
 

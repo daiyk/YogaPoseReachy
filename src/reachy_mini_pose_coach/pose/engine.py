@@ -1,29 +1,34 @@
-"""Typed boundary to the already-installed pose comparison app and its isolated worker."""
+"""Typed boundary to the coach's own pose runtime: Full model, isolated worker and comparison geometry."""
 
-import importlib
 import threading
-from typing import Protocol
+from types import SimpleNamespace
+from typing import Any, Protocol
 from pathlib import Path
 from dataclasses import dataclass
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 
+from .runtime import comparison
 from ..coach.scope import BodyScope
 from ..coach.sample import Reason, Landmark, Component, JointError, MirrorEvidence
 from ..coach.framing import landmark_box
 from ..coach.geometry import Angle, mirrored, components, frontal_angles, labels_reversed
+from .runtime.detector import PoseDetector
+from .runtime.reference import validate_reference
 
 
 try:
     import cv2
 except ImportError:
-    cv2 = None
+    cv2 = None  # type: ignore[assignment]
 
 
 Frame = NDArray[np.uint8]
-__all__ = ["Frame", "FrameResult", "PoseEngine", "cv2"]
+ASSETS = Path(__file__).with_name("assets")
+MODEL = "pose_landmarker_full_v1.task"
+__all__ = ["ASSETS", "Frame", "FrameResult", "PoseEngine", "cv2"]
 
 
 @dataclass(frozen=True)
@@ -39,26 +44,10 @@ class FrameResult:
     missing: tuple[str, ...] = ()
 
 
-class Point(Protocol):
-    """Numeric landmark attributes returned by the existing worker client."""
-
-    x: float
-    y: float
-    presence: float
-    visibility: float
-
-
-class Detection(Protocol):
-    """The two landmark coordinate systems returned by MediaPipe."""
-
-    pose_landmarks: list[list[Point]]
-    pose_world_landmarks: list[list[Point]]
-
-
 class Detector(Protocol):
-    """Existing bounded worker client operations."""
+    """Worker client operations (a fake replaces it in tests)."""
 
-    def detect(self, rgb: Frame, timestamp: int | None = None) -> Detection:
+    def detect(self, rgb: NDArray[Any], timestamp: int | None = None) -> SimpleNamespace:
         """Read one completed numeric result."""
         ...
 
@@ -68,69 +57,42 @@ class Detector(Protocol):
 
 
 class DetectorFactory(Protocol):
-    """The installed PoseDetector constructor signature used here."""
+    """The PoseDetector constructor signature used here."""
 
     def __call__(self, model_path: Path, mode: str, *, options: dict[str, int]) -> Detector:
         """Create one worker without changing the SDK environment."""
         ...
 
 
-class ComparisonResult(Protocol):
-    """Validated comparison fields projected into the coach sample contract."""
-
-    score: float | None
-    reason_code: str
-    deltas_deg: dict[str, float]
-
-
 class Comparison(Protocol):
-    """Existing comparison engine retaining its visibility, geometry and temporal gates."""
+    """Comparison engine retaining its visibility, geometry and temporal gates."""
 
-    def evaluate(self, points: list[Point], world: list[Point], at: float) -> ComparisonResult:
+    def evaluate(
+        self, points: Sequence[comparison.ImagePoint], world: Sequence[comparison.WorldPoint], at: float
+    ) -> comparison.ComparisonResult:
         """Compare one frame against the selected reference."""
         ...
 
 
-class PrepareReference(Protocol):
-    """Reference preparation with explicit comparison timing settings."""
-
-    def __call__(
-        self,
-        points: list[Point],
-        world: list[Point],
-        side: str,
-        *,
-        settings: dict[str, float | int],
-        features: tuple[str, ...],
-    ) -> object:
-        """Retain geometry gates while delegating temporal evidence to the coach."""
-        ...
-
-
 class PoseEngine:
-    """Reuse the installed comparison implementation without copying or downgrading its runtime."""
+    """Run the bundled Full model and comparison without any other Reachy app installed."""
 
-    def __init__(self) -> None:
-        """Resolve the existing full model, worker and reference validator."""
+    def __init__(self, assets: Path = ASSETS) -> None:
+        """Resolve the bundled full model, worker and reference validator."""
         if cv2 is None:
-            raise RuntimeError("Install the existing pose-comparison runtime, including OpenCV")
-        module = importlib.import_module("reachy_mini_pose_compare.detector")
-        comparison = importlib.import_module("reachy_mini_pose_compare.comparison")
-        runner = importlib.import_module("reachy_mini_pose_compare.runner")
-        if module.__file__ is None:
-            raise RuntimeError("The installed pose-comparison app has no assets directory")
-        assets = Path(module.__file__).parent / "assets"
-        self.model = assets / "pose_landmarker_full_v1.task"
+            raise RuntimeError("OpenCV is missing from the app environment; reinstall the pose coach app")
+        self.model = assets / MODEL
         if not self.model.is_file():
-            raise RuntimeError("Install the existing pose-comparison app with its Full model assets")
+            raise RuntimeError(f"Pose model is missing: {self.model}; reinstall the pose coach app")
         self.default_reference = (assets / "reference.jpg").read_bytes()
-        self.validate_image: Callable[[bytes], bytes] = getattr(runner, "validate_reference")
-        self._detector_factory: DetectorFactory = getattr(module, "PoseDetector")
-        self._prepare: PrepareReference = getattr(comparison, "prepare_reference")
-        self.comparison_settings: dict[str, float | int] = dict(getattr(comparison, "SETTINGS"))
+        # Module globals are read here so tests can replace the worker and geometry.
+        self.validate_image: Callable[[bytes], bytes] = validate_reference
+        self._detector_factory: DetectorFactory = PoseDetector
+        self._prepare: Callable[..., comparison.Reference] = comparison.prepare_reference
+        self.comparison_settings: dict[str, float | int] = dict(comparison.SETTINGS)
         # The coach owns smoothing/holds; the old three-frame gate cannot score at 3 FPS.
         self.comparison_settings.update(smoothing_seconds=0.05, minimum_frames=1, minimum_span_seconds=0.0)
-        self._comparison_factory: Callable[[object], Comparison] = getattr(comparison, "ComparisonEngine")
+        self._comparison_factory: Callable[[comparison.Reference], Comparison] = comparison.ComparisonEngine
         self.detector: Detector | None = None
         self.comparison: Comparison | None = None
         # Same-side and mirrored references without the relative-yaw gate, used only to detect mirroring.
@@ -192,7 +154,7 @@ class PoseEngine:
         landmarks = tuple(Landmark(p.x, p.y, p.presence, p.visibility) for p in points)
         box = landmark_box(self.scope.framing_points(landmarks))
         self.missing_landmarks = self.scope.missing(landmarks) if landmarks else ()
-        comparison = self.comparison.evaluate(points, world, captured_at)
+        compared = self.comparison.evaluate(points, world, captured_at)
         reason = {
             "no_pose": Reason.NO_PERSON,
             "missing_landmarks": Reason.OCCLUDED,
@@ -200,7 +162,7 @@ class PoseEngine:
             "unsupported_view": Reason.UNSUPPORTED_VIEW,
             "invalid_geometry": Reason.INVALID_GEOMETRY,
             "stabilizing": Reason.STABILIZING,
-        }.get(comparison.reason_code)
+        }.get(compared.reason_code)
         # Later checks take priority: too close > out of frame (box or head) > swapped labels > comparison.
         if self.missing_landmarks and reason is None:
             reason = Reason.OCCLUDED
@@ -212,7 +174,7 @@ class PoseEngine:
             reason = Reason.TOO_CLOSE
         elif box is not None and (box.left < 0 or box.top < 0 or box.right > 1 or box.bottom > 1):
             reason = Reason.OUT_OF_FRAME
-        if comparison.score is None and reason is None:
+        if compared.score is None and reason is None:
             reason = Reason.INVALID_GEOMETRY
         mirror = None
         if reason in (None, Reason.UNSUPPORTED_VIEW) and self.probes is not None:
@@ -221,13 +183,13 @@ class PoseEngine:
                 mirror = MirrorEvidence(same, opposite)
         if reason is not None:
             return FrameResult(None, (), reason, landmarks, mirror=mirror, missing=self.missing_landmarks)
-        assert comparison.score is not None
+        assert compared.score is not None
         return FrameResult(
-            comparison.score,
-            tuple(JointError(name, value) for name, value in comparison.deltas_deg.items()),
+            compared.score,
+            tuple(JointError(name, value) for name, value in compared.deltas_deg.items()),
             None,
             landmarks,
-            components(frontal_angles(world), self.reference_angles, comparison.deltas_deg),
+            components(frontal_angles(world), self.reference_angles, compared.deltas_deg),
             mirror,
             self.missing_landmarks,
         )
