@@ -19,7 +19,7 @@ PARTS = {
 }
 DEFAULT_PARTS = tuple(name for name, (_, features) in PARTS.items() if features)
 PART_OF = {feature: part for part, (_, features) in PARTS.items() for feature in features}
-# MediaPipe's left/right and facing estimates depend on the face (see results/body-parts).
+# MediaPipe's left/right and facing estimates depend on the face: hiding it can swap hip labels.
 NOSE = 0
 LANDMARK_NAMES = {
     0: "nose",

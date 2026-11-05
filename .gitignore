@@ -82,3 +82,14 @@ external_content/profile_toolsets.json
 # Local validation scratch directories
 .test-tmp*/
 test-cleanup.xml
+
+# Local development history (kept on disk, not published)
+/results/
+/scripts/
+/plan.md
+/PHASE0_RESULTS.md
+/README_OLD.md
+/allurerc.mjs
+/docs/*_plan.md
+allure-results/
+allure-report/

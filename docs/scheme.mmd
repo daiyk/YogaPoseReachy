@@ -1,51 +1,63 @@
 ---
 config:
   layout: dagre
+  htmlLabels: false
   flowchart:
-    htmlLabels: true
+    htmlLabels: false
+    curve: basis
 ---
 flowchart TB
-    User(["<span style='font-size:16px;font-weight:bold;'>User</span><br><span style='font-size:13px;color:#01579b;'>Person interacting with system</span>"]) 
-      -- audio stream --> 
-    UI@{ label: "<span style='font-size:16px;font-weight:bold;'>UI Layer</span><br><span style='font-size:13px;color:#0277bd;'>Web UI / Console</span>" }
+    User(["**You**
+    voice + body pose"])
+    Phone(["**Coach panel**
+    phone / browser"])
 
-    UI -- audio stream --> 
-    Backend@{ label: "<span style='font-size:16px;font-weight:bold;'>Realtime Backend</span><br><span style='font-size:12px; color:#7b1fa2;'>Audio + Tool Calls + Vision</span>" }
+    subgraph Robot["Reachy Mini"]
+        direction TB
+        Mic["**Microphone / speaker**"]
+        Cam["**Camera**"]
+        Motors["**Head, body, antennas**"]
+    end
 
-    Backend -- audio stream -->
-    Motion@{ label: "<span style='font-size:16px;font-weight:bold;'>Motion Control</span><br><span style='font-size:13px;color:#f57f17;'>Audio Sync</span>" }
-    
-    Backend -- tool calls --> 
-    Handlers@{ label: "<span style='font-size:16px;font-weight:bold;'>Tool Layer</span><br><span style='font-size:12px;color:#f9a825;'>Built-in + external tools<br/>+ MCP Tool Spaces</span>" }
+    subgraph App["Pose coach app"]
+        direction TB
+        Realtime["**Conversation handler**
+        huggingface_realtime.py
+        audio turns, tools, playback"]
+        Bridge["**Coach bridge**
+        coach/bridge.py
+        pose context per turn, events"]
+        Coach["**Coach logic**
+        coach/
+        scoring, corrections
+        events, framing"]
+        Pose["**Pose service**
+        pose/service.py
+        frame rate up to 30 FPS"]
+        Worker[["**MediaPipe worker**
+        separate process
+        Full pose model"]]
+        Web["**Web server**
+        static/ + coach/routes.py"]
+        Movement["**Movement manager**
+        moves.py"]
+    end
 
-    Profiles@{ label: "<span style='font-size:16px;font-weight:bold;'>Selected Profile</span><br><span style='font-size:12px;color:#6a1b9a;'>profile.md<br/>+ instance-local tool access</span>" }
+    Server[("**Speech server**
+    hosted or your own")]
 
-    Profiles -- defines enabled tools --> Handlers
-
-    Handlers -- movement 
-    requests --> Motion
-
-    Handlers -. image for
-    analysis .-> Backend
-
-    Robot@{ label: "<span style='font-size:16px;font-weight:bold;'>reachy_mini</span><br><span style='font-size:13px;color:#c62828;'>Robot Control Library</span>" }
-    -- camera 
-    frames --> Handlers
-
-    Motion -- commands --> Robot
-
-    Handlers -- results --> Backend
-
-     User:::userStyle
-     UI:::uiStyle
-     Backend:::aiStyle
-     Motion:::coreStyle
-     Profiles:::toolStyle
-     Handlers:::toolStyle
-     Robot:::hardwareStyle
-    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    classDef uiStyle fill:#b3e5fc,stroke:#0277bd,stroke-width:2px
-    classDef aiStyle fill:#e1bee7,stroke:#7b1fa2,stroke-width:3px
-    classDef coreStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef hardwareStyle fill:#ef9a9a,stroke:#c62828,stroke-width:3px
-    classDef toolStyle fill:#fffde7,stroke:#f9a825,stroke-width:1px
+    User -- speech --> Mic
+    User -- body --> Cam
+    Mic -- audio --> Realtime
+    Realtime -- reply audio --> Mic
+    Realtime <-- "audio + numeric pose context" --> Server
+    Cam -- frames --> Pose
+    Pose <-- "frame / landmarks" --> Worker
+    Pose -- pose samples --> Bridge
+    Bridge <--> Coach
+    Bridge -- "pose context, start/end practice" --> Realtime
+    Coach -- "framing, antenna cues" --> Movement
+    Movement -- commands --> Motors
+    Phone <-- "score, preview, settings" --> Web
+    Web <--> Bridge
+    Web -- "reference, preview" --> Pose

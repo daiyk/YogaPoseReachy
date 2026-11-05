@@ -14,7 +14,7 @@ name = "Pollen Robotics"
 email = "contact@pollen-robotics.com"
 
 [dependency-groups]
-dev = [ "allure-pytest==2.16.0", "pytest", "pytest-asyncio", "pytest-cov==7.1.0", "ruff==0.15.20", "mypy==2.2.0", "pre-commit",]
+dev = [ "pytest", "pytest-asyncio", "pytest-cov==7.1.0", "ruff==0.15.20", "mypy==2.2.0", "pre-commit",]
 
 [project.scripts]
 reachy-mini-pose-coach = "reachy_mini_pose_coach.main:main"
