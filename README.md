@@ -122,18 +122,29 @@ The README already declares `sdk: static` and `reachy_mini_python_app`; the Pyth
 `reachy_mini_apps` entry point. Publish the complete source package, including `src/`, `profiles/`,
 `setup.py`, `pyproject.toml`, `MANIFEST.in`, and the real model/image assets.
 
-The `origin` remote is GitHub; `huggingface` is the private Space. After committing and testing a release,
-push it to both destinations:
+The `origin` remote is GitHub; `huggingface` is the private Space. Development stays on `master`.
+The `hf-release` branch holds release snapshots because older GitHub commits contain a raw model binary
+that Hugging Face rejects even after the current file is converted to LFS. This preserves GitHub history.
+
+After committing and testing a release, with a clean working tree:
 
 ```bash
 git push origin master
-git push huggingface master:main
+git switch hf-release
+git restore --source master --staged --worktree -- .
+git commit -m "Publish updated Pose Coach"
+git push huggingface hf-release:main
+git switch master
 ```
+
+If the release contents are unchanged, skip the commit when Git reports nothing to commit.
 
 For a fresh checkout, add the Space remote once:
 
 ```bash
 git remote add huggingface https://huggingface.co/spaces/eth-sbs/reachy_mini_pose_coach
+git fetch huggingface
+git branch hf-release huggingface/main
 ```
 
 Authenticate with `hf auth login` and add the token as a Git credential. Maintainers need write access;
