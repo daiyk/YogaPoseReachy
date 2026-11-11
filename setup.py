@@ -16,6 +16,12 @@ class BuildPyWithProfiles(build_py):
 
     def run(self) -> None:
         """Build Python modules, then copy root-level profiles into reachy_talk_data."""
+        # Source archives/clones without Git LFS must not produce a broken wheel.
+        for asset in (PROJECT_ROOT / "src").rglob("*"):
+            if asset.is_file():
+                with asset.open("rb") as handle:
+                    if handle.read(64).startswith(b"version https://git-lfs.github.com/spec/v1"):
+                        raise RuntimeError(f"Unresolved Git LFS asset: {asset}. Run git lfs install and git lfs pull.")
         super().run()
 
         target_root = Path(self.build_lib) / TARGET_PACKAGE / TARGET_SUBDIR

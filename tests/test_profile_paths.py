@@ -111,6 +111,12 @@ def test_wheel_file_paths_stay_within_windows_budget(tmp_path: Path) -> None:
 
     with zipfile.ZipFile(wheel_files[0]) as archive:
         assert f"reachy_talk_data/profiles/{config_mod.LOCKED_PROFILE}/profile.md" in archive.namelist()
+        assert archive.read("reachy_mini_pose_coach/pose/assets/reference.jpg").startswith(b"\xff\xd8")
+        assert len(archive.read("reachy_mini_pose_coach/pose/assets/pose_landmarker_full_v1.task")) > 1_000_000
+        assert b"mediapipe==0.10.18" in archive.read("reachy_mini_pose_coach/pose/runtime/requirements-arm64.lock.txt")
+        for info in archive.infolist():
+            if not info.is_dir():
+                assert not archive.read(info).startswith(b"version https://git-lfs.github.com/spec/v1"), info.filename
         archived_paths = [PurePosixPath(info.filename) for info in archive.infolist() if not info.is_dir()]
 
     violations = []

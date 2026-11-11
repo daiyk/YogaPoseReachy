@@ -12,7 +12,7 @@
       <header class="hero">
         <div class="pill">Reachy Mini App</div>
         <h1>Reachy Mini Pose Coach</h1>
-        <p class="subtitle">A conversation app for Reachy Mini robot.</p>
+        <p class="subtitle">A voice-driven yoga and pose coach for Reachy Mini Lite and Wireless.</p>
       </header>
 
       <div class="panel">
@@ -22,20 +22,18 @@
             <h2>Installation</h2>
           </div>
         </div>
-        <p class="muted">Install this app on your Reachy Mini using the app store, or run it locally:</p>
-        <pre><code>uv sync
-reachy-mini-daemon --sim  # in another terminal
-python -m reachy_mini_pose_coach</code></pre>
+        <p class="muted">This is a private app for approved eth-sbs members. Authenticate your Reachy setup with your authorized Hugging Face account, then install the private Space eth-sbs/reachy_mini_pose_coach. See the repository README for the official installation API.</p>
+        <p class="muted">For updates, stop Pose Coach and use Reachy Mini's app manager to fetch the latest version from the same Space. No custom updater or AI agent is needed.</p>
       </div>
 
       <div class="panel">
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Configuration</p>
-            <h2>OpenAI API Key</h2>
+            <h2>Speech server</h2>
           </div>
         </div>
-        <p class="muted">This app requires an OpenAI API key for voice conversations. Set it via the web interface or environment variable.</p>
+        <p class="muted">The app uses a hosted Hugging Face realtime speech server by default. You can choose your own compatible server in the app’s Speech server settings. Pose tracking runs locally on your computer or robot.</p>
       </div>
     </div>
   </body>

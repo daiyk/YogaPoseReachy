@@ -51,40 +51,102 @@ The diagram source is [docs/scheme.mmd](docs/scheme.mmd).
 You also need a realtime speech server. By default the app uses the hosted Hugging Face server; you can
 switch to your own (see [Speech server](#speech-server)).
 
-## Install
+## Install and update (Hugging Face)
 
-The repository is self-contained: the pose model, built-in reference photo, coach profile and web panel are
-all bundled in the package.
+Use Reachy Mini's official app manager for installation and updates. No custom updater or AI agent is
+required. The package bundles the pose model, reference photo, coach profile and web panel.
 
-### Lite (Windows, with the Reachy Mini Control app)
+### Private access and installation
 
-Run in PowerShell:
+Space: [eth-sbs/reachy_mini_pose_coach](https://huggingface.co/spaces/eth-sbs/reachy_mini_pose_coach).
 
-```powershell
-git clone https://github.com/daiyk/YogaPoseReachy.git
-cd YogaPoseReachy
-& "$env:LOCALAPPDATA\Reachy Mini Control\uv.exe" pip install . --python "$env:LOCALAPPDATA\Reachy Mini Control\apps_venv\Scripts\python.exe"
+1. Create a Hugging Face account and give the maintainer your username. An `eth-sbs` administrator
+   invites approved users with read access; accept the invitation.
+2. Connect your robot in Reachy Mini Control (USB for Lite, network for Wireless) and authenticate the
+   Reachy daemon with your own authorized Hugging Face account. A browser login alone is insufficient.
+3. Use the private-Space installation option, if exposed by your Control version, with Space ID
+   `eth-sbs/reachy_mini_pose_coach`. Otherwise use the official API below.
+4. Start the installed app and open its panel.
+
+The Space is private and will not appear in the public app catalog. On Lite the app runs on your computer;
+on Wireless it runs on the robot. Use a current Reachy Mini Control/daemon installation. Installation and
+updates require internet access and an account that retains access to the private Space.
+
+### Receive updates
+
+The maintainer publishes tested changes to the **same Hugging Face Space**. GitHub changes alone do not
+update the Space. Stop Pose Coach before requesting an update through Reachy Mini's app manager, then
+start it again after the update completes. This uses the official update operation; it does not imply
+unattended background updates.
+
+The app must be installed from Hugging Face so the manager records its source. If it was previously
+installed from a local checkout or wheel, install it through the published Space before relying on
+official updates. Back up the instance folder before changing installation methods. Settings and
+uploaded references live outside the installed package.
+
+### Official API (if an update control is unavailable in your Control version)
+
+The daemon exposes the same installation and update operations via its REST API. Replace `<HOST>` with
+`localhost:8000` on Lite or `<robot-ip>:8000` on Wireless. Run Lite requests on the computer hosting the
+daemon. These are shell examples; on
+Windows use `curl.exe` and adapt JSON quoting for your shell.
+
+```bash
+# Initial installation, after authenticating the Reachy daemon:
+curl -X POST http://<HOST>/api/apps/install-private-space \
+  -H "Content-Type: application/json" \
+  -d '{"space_id":"eth-sbs/reachy_mini_pose_coach"}'
+
+# With Pose Coach stopped, update it from its recorded Space:
+curl -X POST http://<HOST>/api/apps/update/reachy_mini_pose_coach
+
+# Install/update returns a job_id; wait until its status is done before starting:
+curl http://<HOST>/api/apps/job-status/<job_id>
 ```
 
-To update later without touching dependencies:
+A `failed` job requires checking its error before starting the app. See the
+[official app documentation](https://huggingface.co/docs/reachy_mini/SDK/apps).
 
-```powershell
-& "$env:LOCALAPPDATA\Reachy Mini Control\uv.exe" pip install --no-deps --reinstall-package reachy-mini-pose-coach . --python "$env:LOCALAPPDATA\Reachy Mini Control\apps_venv\Scripts\python.exe"
+### Wireless pose runtime
+
+The first start creates the separate pose runtime from the bundled lock file. It needs internet access
+and takes a few minutes; the panel shows *Installing pose tracker* meanwhile. The log is
+`~/reachy-pose-runtime/install.log`. When an app update changes this lock, the next start installs the
+updated runtime dependencies. Failed runtime updates are retried. This prepares the isolated MediaPipe
+environment; app downloads and updates remain the official app manager's responsibility.
+
+### Publishing (maintainer)
+
+Keep GitHub as the development repository and publish tested releases to a stable Hugging Face Space.
+The README already declares `sdk: static` and `reachy_mini_python_app`; the Python package declares its
+`reachy_mini_apps` entry point. Publish the complete source package, including `src/`, `profiles/`,
+`setup.py`, `pyproject.toml`, `MANIFEST.in`, and the real model/image assets.
+
+The `origin` remote is GitHub; `huggingface` is the private Space. After committing and testing a release,
+push it to both destinations:
+
+```bash
+git push origin master
+git push huggingface master:main
 ```
 
-### Wireless
+For a fresh checkout, add the Space remote once:
 
-Build the wheel on your computer, copy it to the robot and install it into the robot's app environment:
-
-```powershell
-uv build --wheel -o dist .
-scp dist\reachy_mini_pose_coach-1.2.0-py3-none-any.whl pollen@<robot-ip>:/home/pollen/
-ssh pollen@<robot-ip> "/venvs/apps_venv/bin/pip install /home/pollen/reachy_mini_pose_coach-1.2.0-py3-none-any.whl && /venvs/apps_venv/bin/pip check"
+```bash
+git remote add huggingface https://huggingface.co/spaces/eth-sbs/reachy_mini_pose_coach
 ```
 
-The first start creates the separate pose runtime from the bundled lock file. It needs internet access and
-takes a few minutes; the panel shows *Installing pose tracker* meanwhile. The log is
-`~/reachy-pose-runtime/install.log`.
+Authenticate with `hf auth login` and add the token as a Git credential. Maintainers need write access;
+app users only need read access. Git LFS must be installed for source clones and pushes (`git lfs install`
+and `git lfs pull`). Builds reject unresolved LFS pointers.
+
+GitHub and Hugging Face do not automatically mirror each other. Push to the Space for each release;
+Reachy's official updater then downloads that version. No GitHub Actions sync or custom updater is used.
+Keep the Space private, increment the package version for later releases, and avoid editing release files
+directly on the Hub so the remotes do not diverge.
+
+Before handing over the app, test both a fresh Space installation and an official update on the target
+Lite/Wireless setup. Local wheel validation alone does not verify that end-to-end path.
 
 ## Use
 

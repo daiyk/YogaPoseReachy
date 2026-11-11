@@ -97,8 +97,12 @@ def _ready(root: Path, python: Path) -> bool:
     try:
         if json.loads(marker.read_text(encoding="utf-8")).get("lock_sha256") == lock_digest():
             return True
+        # A managed runtime must apply the entire new lock, even when MediaPipe is unchanged.
+        return False
+    except FileNotFoundError:
+        pass  # Only an unmarked legacy runtime may be adopted.
     except (OSError, ValueError, AttributeError):
-        pass
+        return False
     probe = "import mediapipe, numpy, cv2; print(mediapipe.__version__)"
     try:
         found = subprocess.run(
